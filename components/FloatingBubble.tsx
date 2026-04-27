@@ -1,0 +1,43 @@
+'use client'
+
+import { useEffect, useState, useRef } from 'react'
+
+interface Bubble {
+  id: number
+  text: string
+}
+
+interface Props {
+  trigger: { text: string; id: number } | null
+}
+
+export function FloatingBubble({ trigger }: Props) {
+  const [bubbles, setBubbles] = useState<Bubble[]>([])
+  const seenRef = useRef<number>(-1)
+
+  useEffect(() => {
+    if (!trigger || trigger.id === seenRef.current) return
+    seenRef.current = trigger.id
+    const newBubble: Bubble = { id: trigger.id, text: trigger.text }
+    setBubbles((prev) => [...prev.slice(-4), newBubble])
+    setTimeout(() => {
+      setBubbles((prev) => prev.filter((b) => b.id !== newBubble.id))
+    }, 2800)
+  }, [trigger])
+
+  return (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden">
+      {bubbles.map((bubble) => (
+        <div
+          key={bubble.id}
+          className="absolute left-1/2 -translate-x-1/2 bubble-float"
+          style={{ bottom: '120px' }}
+        >
+          <div className="bg-white/90 backdrop-blur-sm text-[#3a1a5e] text-sm font-medium px-4 py-2.5 rounded-2xl shadow-lg max-w-[280px] text-center leading-snug">
+            {bubble.text}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}

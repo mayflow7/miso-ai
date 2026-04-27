@@ -1,0 +1,11 @@
+
+1. D:\_MyService\002_miso.ai\_claude.doc에 D:\_MyService\002_miso.ai\_claud.code에서 정의한 01_instruction.txt로 최초의 기본 프로젝트가 잘 완성되었다. 
+
+2. 두번째 instruction (D:\_MyService\002_miso.ai\_claud.code\02_instruction.txt)의 내용은 다음과 같은 개선 작업입니다. 
+
+2-1. 우선, 3D 모델이 누은 감밖이기 때문에 살아 있는 느낌은 들지만, A와 T pose와 같은 상태로 움직이 않으니, 별로 입니다. 
+
+2-2. 질문 - idle 상태에 뭔가 자연스러운 animation을 추가할 수 있는지? 
+
+
+이것이 두번째 instruction의 핵심입니다. 
