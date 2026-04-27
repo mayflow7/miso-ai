@@ -50,6 +50,16 @@ export default function Home() {
         <LevelGauge />
       </div>
 
+      {/* 버튼 위 그라디언트 — 캐릭터 발이 버튼과 겹치지 않게 자연스럽게 페이드 */}
+      <div
+        className="absolute left-0 right-0 z-10 pointer-events-none"
+        style={{
+          bottom: '100px',
+          height: '120px',
+          background: 'linear-gradient(to top, #0a0612 20%, transparent)',
+        }}
+      />
+
       {/* Action buttons — bottom overlay */}
       <div className="absolute bottom-0 left-0 right-0 z-20">
         <ActionButtons onAction={handleAction} />
