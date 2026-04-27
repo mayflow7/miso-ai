@@ -13,25 +13,69 @@ body {
   height: 100dvh;
 }
 
+/* Bubble floats from button area up to screen center, then dims out */
 @keyframes bubbleFloat {
   0% {
     opacity: 0;
     transform: translateX(-50%) translateY(0px);
   }
-  15% {
+  10% {
     opacity: 1;
-    transform: translateX(-50%) translateY(-10px);
+    transform: translateX(-50%) translateY(-18px);
   }
-  70% {
+  72% {
     opacity: 1;
-    transform: translateX(-50%) translateY(-50px);
+    transform: translateX(-50%) translateY(calc(-50vh + 130px));
   }
   100% {
     opacity: 0;
-    transform: translateX(-50%) translateY(-90px);
+    transform: translateX(-50%) translateY(calc(-50vh + 60px));
   }
 }
 
 .bubble-float {
-  animation: bubbleFloat 2.8s ease-out forwards;
+  animation: bubbleFloat 4.2s ease-out forwards;
+}
+
+/* Particle fireworks burst */
+@keyframes particleBurst {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, 0) rotate(0deg) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--vx)), var(--vy)) rotate(var(--rotate)) scale(0.1);
+  }
+}
+
+.particle-burst {
+  will-change: transform, opacity;
+}
+
+/* Volume slider */
+.volume-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 2px;
+  outline: none;
+}
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #f472b6;
+  cursor: pointer;
+  margin-top: 0;
+}
+.volume-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #f472b6;
+  cursor: pointer;
+  border: none;
 }
