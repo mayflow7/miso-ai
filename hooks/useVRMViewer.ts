@@ -50,9 +50,12 @@ function applyPose(vrm: any, emotion: Emotion) {
 
 export function useVRMViewer(containerRef: React.RefObject<HTMLDivElement | null>) {
   const sceneRef = useRef<{
-    renderer: any; scene: any; camera: any; vrm: any; clock: any; animFrame: number
+    renderer: any; scene: any; camera: any; vrm: any; clock: any; animFrame: number;
+    raycaster: any; shoeThreshold: number
   } | null>(null)
   const emotionRef = useRef<Emotion>('idle')
+  // 메시별 독립 토글 상태: mesh → { toggled, originalColors }
+  const shoeMeshStatesRef = useRef<Map<any, { toggled: boolean; origColors: Map<any, number> }>>(new Map())
 
   const init = useCallback(async () => {
     if (!containerRef.current) return
@@ -97,6 +100,9 @@ export function useVRMViewer(containerRef: React.RefObject<HTMLDivElement | null
     const clock = new THREE.Clock()
     let vrm: any = null
 
+    const raycaster = new THREE.Raycaster()
+    let shoeThreshold = 0.12
+
     try {
       const gltf = await loader.loadAsync('/vrm/character.vrm')
       vrm = (gltf as any).userData.vrm
@@ -105,6 +111,10 @@ export function useVRMViewer(containerRef: React.RefObject<HTMLDivElement | null
         VRMUtils.combineSkeletons(vrm.scene)
         scene.add(vrm.scene)
         applyPose(vrm, 'idle')
+
+        // 캐릭터 높이 기준으로 신발 감지 임계값 설정 (하위 22%)
+        const box = new THREE.Box3().setFromObject(vrm.scene)
+        shoeThreshold = box.min.y + (box.max.y - box.min.y) * 0.22
       }
     } catch {
       console.warn('VRM load failed')
@@ -242,7 +252,7 @@ export function useVRMViewer(containerRef: React.RefObject<HTMLDivElement | null
     }
     tick()
 
-    sceneRef.current = { renderer, scene, camera, vrm, clock, animFrame }
+    sceneRef.current = { renderer, scene, camera, vrm, clock, animFrame, raycaster, shoeThreshold }
 
     return () => {
       window.removeEventListener('resize', onResize)
@@ -257,6 +267,53 @@ export function useVRMViewer(containerRef: React.RefObject<HTMLDivElement | null
     return () => { cleanup.then((fn) => fn?.()) }
   }, [init])
 
+  const toggleShoeColor = useCallback((mesh: any) => {
+    const states = shoeMeshStatesRef.current
+    const mats: any[] = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
+    const state = states.get(mesh)
+
+    if (!state) {
+      // 첫 클릭: 원본 색 저장 후 빨간색으로
+      const origColors = new Map<any, number>()
+      mats.forEach((mat: any) => {
+        if (mat?.color) origColors.set(mat, mat.color.getHex())
+      })
+      mats.forEach((mat: any) => { if (mat?.color) mat.color.setHex(0xff2244) })
+      states.set(mesh, { toggled: true, origColors })
+    } else if (state.toggled) {
+      // 빨간색 → 원래 색 복원
+      mats.forEach((mat: any) => {
+        const orig = state.origColors.get(mat)
+        if (orig !== undefined) mat.color.setHex(orig)
+      })
+      state.toggled = false
+    } else {
+      // 원래 색 → 빨간색
+      mats.forEach((mat: any) => { if (mat?.color) mat.color.setHex(0xff2244) })
+      state.toggled = true
+    }
+  }, [])
+
+  const handleCanvasClick = useCallback((clientX: number, clientY: number) => {
+    const ref = sceneRef.current
+    if (!ref?.vrm || !ref.raycaster) return
+
+    const canvas = ref.renderer.domElement as HTMLCanvasElement
+    const rect = canvas.getBoundingClientRect()
+    const ndcX = ((clientX - rect.left) / rect.width) * 2 - 1
+    const ndcY = -((clientY - rect.top) / rect.height) * 2 + 1
+
+    ref.raycaster.setFromCamera({ x: ndcX, y: ndcY }, ref.camera)
+
+    const meshes: any[] = []
+    ref.vrm.scene.traverse((obj: any) => { if (obj.isMesh) meshes.push(obj) })
+    const intersects = ref.raycaster.intersectObjects(meshes, false)
+
+    if (intersects.length > 0 && intersects[0].point.y <= ref.shoeThreshold) {
+      toggleShoeColor(intersects[0].object)
+    }
+  }, [toggleShoeColor])
+
   const setEmotion = useCallback((emotion: Emotion) => {
     emotionRef.current = emotion
     const ref = sceneRef.current
@@ -270,5 +327,5 @@ export function useVRMViewer(containerRef: React.RefObject<HTMLDivElement | null
     applyPose(vrm, emotion)
   }, [])
 
-  return { setEmotion }
+  return { setEmotion, handleCanvasClick }
 }

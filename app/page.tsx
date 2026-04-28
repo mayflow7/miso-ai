@@ -18,7 +18,7 @@ const VRMViewer = dynamic(
 )
 
 export default function Home() {
-  const addXp = useStore((s) => s.addXp)
+  const addClick = useStore((s) => s.addClick)
   const [started, setStarted] = useState(false)
   const [emotion, setEmotion] = useState<Emotion>('idle')
   const [bubble, setBubble] = useState<{ text: string; id: number; buttonIndex: number } | null>(null)
@@ -29,14 +29,14 @@ export default function Home() {
   const { volume, setVolume } = useBackgroundMusic('/audio/Dream.wav', started)
 
   const handleAction = useCallback((newEmotion: Emotion, text: string, buttonIndex: number) => {
-    addXp()
+    addClick()
     setEmotion(newEmotion)
     setBubble({ text, id: ++bubbleIdRef.current, buttonIndex })
     setParticle({ id: bubbleIdRef.current, buttonIndex, emotion: newEmotion })
 
     if (emotionTimerRef.current) clearTimeout(emotionTimerRef.current)
     emotionTimerRef.current = setTimeout(() => setEmotion('idle'), 3000)
-  }, [addXp])
+  }, [addClick])
 
   return (
     <main className="relative w-full h-full overflow-hidden bg-[#0a0612]">
