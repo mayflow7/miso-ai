@@ -284,7 +284,7 @@ export function useVRMViewer(containerRef: React.RefObject<HTMLDivElement | null
       ms.forEach((mat: any) => {
         if (!mat?.color) return
         if (shoeToggledRef.current) {
-          mat.color.setHex(0xff2244)
+          mat.color.setHex(0x9933ff)
         } else {
           const orig = shoeOrigColorsRef.current.get(mat)
           if (orig !== undefined) mat.color.setHex(orig)
