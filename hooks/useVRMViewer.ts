@@ -54,8 +54,9 @@ export function useVRMViewer(containerRef: React.RefObject<HTMLDivElement | null
     raycaster: any; shoeThreshold: number
   } | null>(null)
   const emotionRef = useRef<Emotion>('idle')
-  // 메시별 독립 토글 상태: mesh → { toggled, originalColors }
-  const shoeMeshStatesRef = useRef<Map<any, { toggled: boolean; origColors: Map<any, number> }>>(new Map())
+  const shoeToggledRef = useRef(false)
+  const shoeCollectedRef = useRef<Set<any>>(new Set())
+  const shoeOrigColorsRef = useRef<Map<any, number>>(new Map())
 
   const init = useCallback(async () => {
     if (!containerRef.current) return
@@ -268,30 +269,28 @@ export function useVRMViewer(containerRef: React.RefObject<HTMLDivElement | null
   }, [init])
 
   const toggleShoeColor = useCallback((mesh: any) => {
-    const states = shoeMeshStatesRef.current
+    // 클릭된 메시 및 그 material의 원본 색 수집
+    shoeCollectedRef.current.add(mesh)
     const mats: any[] = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
-    const state = states.get(mesh)
+    mats.forEach((mat: any) => {
+      if (mat?.color && !shoeOrigColorsRef.current.has(mat))
+        shoeOrigColorsRef.current.set(mat, mat.color.getHex())
+    })
 
-    if (!state) {
-      // 첫 클릭: 원본 색 저장 후 빨간색으로
-      const origColors = new Map<any, number>()
-      mats.forEach((mat: any) => {
-        if (mat?.color) origColors.set(mat, mat.color.getHex())
+    // 전체 수집된 메시를 하나의 토글로 제어
+    shoeToggledRef.current = !shoeToggledRef.current
+    shoeCollectedRef.current.forEach((m: any) => {
+      const ms: any[] = Array.isArray(m.material) ? m.material : [m.material]
+      ms.forEach((mat: any) => {
+        if (!mat?.color) return
+        if (shoeToggledRef.current) {
+          mat.color.setHex(0xff2244)
+        } else {
+          const orig = shoeOrigColorsRef.current.get(mat)
+          if (orig !== undefined) mat.color.setHex(orig)
+        }
       })
-      mats.forEach((mat: any) => { if (mat?.color) mat.color.setHex(0xff2244) })
-      states.set(mesh, { toggled: true, origColors })
-    } else if (state.toggled) {
-      // 빨간색 → 원래 색 복원
-      mats.forEach((mat: any) => {
-        const orig = state.origColors.get(mat)
-        if (orig !== undefined) mat.color.setHex(orig)
-      })
-      state.toggled = false
-    } else {
-      // 원래 색 → 빨간색
-      mats.forEach((mat: any) => { if (mat?.color) mat.color.setHex(0xff2244) })
-      state.toggled = true
-    }
+    })
   }, [])
 
   const handleCanvasClick = useCallback((clientX: number, clientY: number) => {
