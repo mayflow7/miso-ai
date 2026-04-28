@@ -114,7 +114,7 @@ export function useVRMViewer(containerRef: React.RefObject<HTMLDivElement | null
 
         // 캐릭터 높이 기준으로 신발 감지 임계값 설정 (하위 22%)
         const box = new THREE.Box3().setFromObject(vrm.scene)
-        shoeThreshold = box.min.y + (box.max.y - box.min.y) * 0.22
+        shoeThreshold = box.min.y + (box.max.y - box.min.y) * 0.26
       }
     } catch {
       console.warn('VRM load failed')
