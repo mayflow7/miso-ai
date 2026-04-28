@@ -308,7 +308,9 @@ export function useVRMViewer(containerRef: React.RefObject<HTMLDivElement | null
     ref.vrm.scene.traverse((obj: any) => { if (obj.isMesh) meshes.push(obj) })
     const intersects = ref.raycaster.intersectObjects(meshes, false)
 
-    if (intersects.length > 0 && intersects[0].point.y <= ref.shoeThreshold) {
+    // 캐릭터 hit 여부: 레이캐스트 / 부츠 영역: 화면 하단 35%로 판단
+    const screenRelY = (clientY - rect.top) / rect.height
+    if (intersects.length > 0 && screenRelY > 0.65) {
       toggleShoeColor(intersects[0].object)
     }
   }, [toggleShoeColor])
