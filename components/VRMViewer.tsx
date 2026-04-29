@@ -1,51 +1,46 @@
 'use client'
 
-import { useRef, useEffect, useCallback } from 'react'
+import { useRef, useEffect } from 'react'
 import { useVRMViewer } from '@/hooks/useVRMViewer'
 import type { Emotion } from '@/types'
 
 interface Props {
   emotion: Emotion
+  changeShoeColorRef?: React.MutableRefObject<((hex: number | null) => void) | null>
+  changeDressColorRef?: React.MutableRefObject<((hex: number | null) => void) | null>
+  toggleShoeVisibilityRef?: React.MutableRefObject<(() => void) | null>
+switchModelRef?: React.MutableRefObject<((path: string) => void) | null>
 }
 
-export function VRMViewer({ emotion }: Props) {
+export function VRMViewer({ emotion, changeShoeColorRef, changeDressColorRef, toggleShoeVisibilityRef, switchModelRef }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const { setEmotion, handleCanvasClick } = useVRMViewer(containerRef)
-  const touchStartRef = useRef<{ x: number; y: number } | null>(null)
+  const { setEmotion, changeShoeColor, changeDressColor, toggleShoeVisibility, switchModel } = useVRMViewer(containerRef)
 
   useEffect(() => {
     setEmotion(emotion)
   }, [emotion, setEmotion])
 
-  const handleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    handleCanvasClick(e.clientX, e.clientY)
-  }, [handleCanvasClick])
+  useEffect(() => {
+    if (changeShoeColorRef) changeShoeColorRef.current = changeShoeColor
+  }, [changeShoeColorRef, changeShoeColor])
 
-  const handleTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
-    const t = e.touches[0]
-    if (t) touchStartRef.current = { x: t.clientX, y: t.clientY }
-  }, [])
+  useEffect(() => {
+    if (changeDressColorRef) changeDressColorRef.current = changeDressColor
+  }, [changeDressColorRef, changeDressColor])
 
-  const handleTouchEnd = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
-    const t = e.changedTouches[0]
-    if (!t || !touchStartRef.current) return
-    const dx = t.clientX - touchStartRef.current.x
-    const dy = t.clientY - touchStartRef.current.y
-    touchStartRef.current = null
-    // 8px 이하 이동 = 탭으로 판정
-    if (Math.sqrt(dx * dx + dy * dy) < 8) {
-      handleCanvasClick(t.clientX, t.clientY)
-    }
-  }, [handleCanvasClick])
+  useEffect(() => {
+    if (toggleShoeVisibilityRef) toggleShoeVisibilityRef.current = toggleShoeVisibility
+  }, [toggleShoeVisibilityRef, toggleShoeVisibility])
+
+  useEffect(() => {
+    if (switchModelRef) switchModelRef.current = switchModel
+  }, [switchModelRef, switchModel])
 
   return (
     <div
       ref={containerRef}
       className="w-full h-full"
       style={{ background: 'transparent' }}
-      onClick={handleClick}
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
     />
   )
 }

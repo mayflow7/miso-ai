@@ -11,7 +11,7 @@ export function LevelGauge() {
       <div className="flex items-center justify-between mb-1.5">
         <span className="text-xs font-semibold tracking-widest text-white/50 uppercase">Lv.{level}</span>
         <span className="text-xs text-white/30">
-          {level < MAX_LEVEL ? `${Math.floor(progressPct)}% / 100` : 'MAX'}
+          {level < MAX_LEVEL ? `${Math.floor(progressPct)}%` : 'MAX'}
         </span>
       </div>
       <div className="relative h-2 w-full rounded-full bg-white/10 overflow-hidden">

@@ -51,12 +51,15 @@ function applyPose(vrm: any, emotion: Emotion) {
 export function useVRMViewer(containerRef: React.RefObject<HTMLDivElement | null>) {
   const sceneRef = useRef<{
     renderer: any; scene: any; camera: any; vrm: any; clock: any; animFrame: number;
-    raycaster: any; shoeThreshold: number
+    raycaster: any
   } | null>(null)
   const emotionRef = useRef<Emotion>('idle')
-  const shoeToggledRef = useRef(false)
-  const shoeCollectedRef = useRef<Set<any>>(new Set())
+  const vrmRef = useRef<any>(null)
   const shoeOrigColorsRef = useRef<Map<any, number>>(new Map())
+  const shoeColoredRef = useRef(false)
+  const shoeVisibleRef = useRef(true)
+  const dressOrigColorsRef = useRef<Map<any, number>>(new Map())
+  const dressColoredRef = useRef(false)
 
   const init = useCallback(async () => {
     if (!containerRef.current) return
@@ -102,7 +105,6 @@ export function useVRMViewer(containerRef: React.RefObject<HTMLDivElement | null
     let vrm: any = null
 
     const raycaster = new THREE.Raycaster()
-    let shoeThreshold = 0.12
 
     try {
       const gltf = await loader.loadAsync('/vrm/character.vrm')
@@ -112,10 +114,7 @@ export function useVRMViewer(containerRef: React.RefObject<HTMLDivElement | null
         VRMUtils.combineSkeletons(vrm.scene)
         scene.add(vrm.scene)
         applyPose(vrm, 'idle')
-
-        // 캐릭터 높이 기준으로 신발 감지 임계값 설정 (하위 22%)
-        const box = new THREE.Box3().setFromObject(vrm.scene)
-        shoeThreshold = box.min.y + (box.max.y - box.min.y) * 0.26
+        vrmRef.current = vrm
       }
     } catch {
       console.warn('VRM load failed')
@@ -148,6 +147,7 @@ export function useVRMViewer(containerRef: React.RefObject<HTMLDivElement | null
     const tick = () => {
       animFrame = requestAnimationFrame(tick)
       const delta = clock.getDelta()
+      vrm = vrmRef.current
 
       if (vrm) {
         // ── 눈 깜빡임 ─────────────────────────────────────────────
@@ -168,6 +168,9 @@ export function useVRMViewer(containerRef: React.RefObject<HTMLDivElement | null
 
         if (emotionRef.current === 'idle') {
           const t = clock.elapsedTime
+
+          // ── 전체 캐릭터 좌우 방향 전환 ───────────────────────
+          vrm.scene.rotation.y = Math.sin(t * 1.26) * 0.25 + Math.sin(t * 0.45) * 0.08
 
           // ── 호흡 & 몸통 ────────────────────────────────────────
           const breath = Math.sin(t * 0.5) * 0.018
@@ -243,6 +246,9 @@ export function useVRMViewer(containerRef: React.RefObject<HTMLDivElement | null
             rArm.rotation.z = -1.3 - Math.sin(t * 0.22) * 0.02 - breath * 0.5
             rArm.rotation.x = 0.1 + Math.sin(t * 0.31 + 1) * 0.012
           }
+        } else {
+          // idle이 아닐 때 회전을 부드럽게 정면으로 복귀
+          vrm.scene.rotation.y += (0 - vrm.scene.rotation.y) * Math.min(1, delta * 4)
         }
 
         vrm.update(delta)
@@ -253,7 +259,7 @@ export function useVRMViewer(containerRef: React.RefObject<HTMLDivElement | null
     }
     tick()
 
-    sceneRef.current = { renderer, scene, camera, vrm, clock, animFrame, raycaster, shoeThreshold }
+    sceneRef.current = { renderer, scene, camera, vrm, clock, animFrame, raycaster }
 
     return () => {
       window.removeEventListener('resize', onResize)
@@ -268,52 +274,28 @@ export function useVRMViewer(containerRef: React.RefObject<HTMLDivElement | null
     return () => { cleanup.then((fn) => fn?.()) }
   }, [init])
 
-  const toggleShoeColor = useCallback((mesh: any) => {
-    // 클릭된 메시 및 그 material의 원본 색 수집
-    shoeCollectedRef.current.add(mesh)
-    const mats: any[] = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
-    mats.forEach((mat: any) => {
-      if (mat?.color && !shoeOrigColorsRef.current.has(mat))
-        shoeOrigColorsRef.current.set(mat, mat.color.getHex())
-    })
-
-    // 전체 수집된 메시를 하나의 토글로 제어
-    shoeToggledRef.current = !shoeToggledRef.current
-    shoeCollectedRef.current.forEach((m: any) => {
-      const ms: any[] = Array.isArray(m.material) ? m.material : [m.material]
-      ms.forEach((mat: any) => {
+  const changeShoeColor = useCallback((hex: number | null) => {
+    const ref = sceneRef.current
+    if (!ref?.vrm) return
+    ref.vrm.scene.traverse((obj: any) => {
+      if (!obj.isMesh) return
+      const mats: any[] = Array.isArray(obj.material) ? obj.material : [obj.material]
+      const isShoe = mats.some((m: any) => /shoes/i.test(m?.name ?? ''))
+      if (!isShoe) return
+      mats.forEach((mat: any) => {
         if (!mat?.color) return
-        if (shoeToggledRef.current) {
-          mat.color.setHex(0x9933ff)
-        } else {
+        if (!shoeOrigColorsRef.current.has(mat))
+          shoeOrigColorsRef.current.set(mat, mat.color.getHex())
+        if (hex === null) {
           const orig = shoeOrigColorsRef.current.get(mat)
           if (orig !== undefined) mat.color.setHex(orig)
+        } else {
+          mat.color.setHex(hex)
         }
       })
     })
+    shoeColoredRef.current = hex !== null
   }, [])
-
-  const handleCanvasClick = useCallback((clientX: number, clientY: number) => {
-    const ref = sceneRef.current
-    if (!ref?.vrm || !ref.raycaster) return
-
-    const canvas = ref.renderer.domElement as HTMLCanvasElement
-    const rect = canvas.getBoundingClientRect()
-    const ndcX = ((clientX - rect.left) / rect.width) * 2 - 1
-    const ndcY = -((clientY - rect.top) / rect.height) * 2 + 1
-
-    ref.raycaster.setFromCamera({ x: ndcX, y: ndcY }, ref.camera)
-
-    const meshes: any[] = []
-    ref.vrm.scene.traverse((obj: any) => { if (obj.isMesh) meshes.push(obj) })
-    const intersects = ref.raycaster.intersectObjects(meshes, false)
-
-    // 캐릭터 hit 여부: 레이캐스트 / 부츠 영역: 화면 하단 35%로 판단
-    const screenRelY = (clientY - rect.top) / rect.height
-    if (intersects.length > 0 && screenRelY > 0.65) {
-      toggleShoeColor(intersects[0].object)
-    }
-  }, [toggleShoeColor])
 
   const setEmotion = useCallback((emotion: Emotion) => {
     emotionRef.current = emotion
@@ -328,5 +310,73 @@ export function useVRMViewer(containerRef: React.RefObject<HTMLDivElement | null
     applyPose(vrm, emotion)
   }, [])
 
-  return { setEmotion, handleCanvasClick }
+  const changeDressColor = useCallback((hex: number | null) => {
+    const ref = sceneRef.current
+    if (!ref?.vrm) return
+    ref.vrm.scene.traverse((obj: any) => {
+      if (!obj.isMesh) return
+      const mats: any[] = Array.isArray(obj.material) ? obj.material : [obj.material]
+      const isDress = mats.some((m: any) => /CLOTH/i.test(m?.name ?? '') && !/shoes/i.test(m?.name ?? ''))
+      if (!isDress) return
+      mats.forEach((mat: any) => {
+        if (!mat?.color) return
+        if (!dressOrigColorsRef.current.has(mat))
+          dressOrigColorsRef.current.set(mat, mat.color.getHex())
+        if (hex === null) {
+          const orig = dressOrigColorsRef.current.get(mat)
+          if (orig !== undefined) mat.color.setHex(orig)
+        } else {
+          mat.color.setHex(hex)
+        }
+      })
+    })
+    dressColoredRef.current = hex !== null
+  }, [])
+
+  const toggleShoeVisibility = useCallback(() => {
+    const ref = sceneRef.current
+    if (!ref?.vrm) return
+    shoeVisibleRef.current = !shoeVisibleRef.current
+    ref.vrm.scene.traverse((obj: any) => {
+      if (!obj.isMesh) return
+      const mats: any[] = Array.isArray(obj.material) ? obj.material : [obj.material]
+      if (mats.some((m: any) => /shoes/i.test(m?.name ?? '')))
+        obj.visible = shoeVisibleRef.current
+    })
+  }, [])
+
+  const switchModel = useCallback(async (path: string) => {
+    const ref = sceneRef.current
+    if (!ref) return
+    if (vrmRef.current) {
+      ref.scene.remove(vrmRef.current.scene)
+      vrmRef.current = null
+      ref.vrm = null
+    }
+    const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js')
+    const { VRMLoaderPlugin, VRMUtils } = await import('@pixiv/three-vrm')
+    const loader = new GLTFLoader()
+    loader.register((parser: any) => new VRMLoaderPlugin(parser))
+    try {
+      const gltf = await loader.loadAsync(path)
+      const newVrm = (gltf as any).userData.vrm
+      if (newVrm) {
+        VRMUtils.removeUnnecessaryVertices(newVrm.scene)
+        VRMUtils.combineSkeletons(newVrm.scene)
+        ref.scene.add(newVrm.scene)
+        applyPose(newVrm, emotionRef.current)
+        vrmRef.current = newVrm
+        ref.vrm = newVrm
+        shoeOrigColorsRef.current.clear()
+        shoeColoredRef.current = false
+        dressOrigColorsRef.current.clear()
+        dressColoredRef.current = false
+        shoeVisibleRef.current = true
+      }
+    } catch {
+      console.warn('VRM switch failed:', path)
+    }
+  }, [])
+
+  return { setEmotion, changeShoeColor, changeDressColor, toggleShoeVisibility, switchModel }
 }

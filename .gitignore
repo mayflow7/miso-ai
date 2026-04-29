@@ -25,3 +25,8 @@ npm-debug.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+.vercel
+
+# reference assets (large binaries, not for deployment)
+_ref_resource/

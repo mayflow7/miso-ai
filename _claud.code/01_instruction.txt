@@ -1,3 +1,6 @@
+
+== instruction 01
+
 Claud code 요청 사항: 
 다음과 같은 내용으로 Miso라는 웹 서비스를 만들고 싶어. 
 
